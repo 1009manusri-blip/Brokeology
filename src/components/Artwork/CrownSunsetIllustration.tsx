@@ -3,7 +3,12 @@ import React from 'react';
 export const CrownSunsetIllustration: React.FC = () => {
   return (
     <div className="relative w-full aspect-[16/10] max-w-xl mx-auto rounded-3xl overflow-hidden border border-white/10 shadow-2xl group select-none">
-      <svg viewBox="0 0 600 380" className="w-full h-full object-cover">
+      <svg
+        role="img"
+        aria-label="Illustration of gold victory crown glowing over a vibrant sunset sky"
+        viewBox="0 0 600 380"
+        className="w-full h-full object-cover"
+      >
         <defs>
           <linearGradient id="victorySunset" x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" stopColor="#1e1035" />

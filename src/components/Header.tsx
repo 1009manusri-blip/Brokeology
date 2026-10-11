@@ -14,6 +14,9 @@ import {
   Globe2,
   Smartphone,
   RotateCcw,
+  Volume2,
+  VolumeX,
+  Keyboard,
 } from 'lucide-react';
 
 export const Header: React.FC = () => {
@@ -27,6 +30,9 @@ export const Header: React.FC = () => {
     resetGame,
     currentDay,
     remainingBudget,
+    isAudioMuted,
+    toggleAudioMute,
+    setShortcutsModalOpen,
   } = useGame();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
@@ -61,8 +67,8 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-[#080c1e]/85 backdrop-blur-2xl border-b border-white/10 px-4 sm:px-6 lg:px-8 py-2.5 transition-colors shadow-2xl">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-40 w-full bg-[#080c1e]/85 backdrop-blur-2xl border-b border-white/10 px-3 sm:px-6 lg:px-8 py-2.5 transition-colors shadow-2xl">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
         {/* Left: Small, Refined Brokeology Logo */}
         <button
           onClick={() => {
@@ -71,27 +77,32 @@ export const Header: React.FC = () => {
             }
             setCurrentScreen('landing');
           }}
-          className="flex items-center gap-2.5 text-left group focus:outline-none cursor-pointer shrink-0"
+          aria-label="Brokeology home, navigate to home screen"
+          className="flex items-center gap-2 sm:gap-2.5 text-left group focus-visible:outline-2 focus-visible:outline-pink-400 focus-visible:outline-offset-2 rounded-xl cursor-pointer shrink-0"
         >
           <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-pink-500 via-rose-500 to-amber-400 p-0.5 shadow-md shadow-pink-500/25 group-hover:scale-105 transition-transform duration-200">
             <div className="w-full h-full bg-[#0d122b] rounded-[10px] flex items-center justify-center">
               <span className="text-pink-400 font-black text-sm">₹</span>
             </div>
           </div>
-          <span className="font-display font-extrabold text-xl tracking-tight text-white group-hover:text-pink-300 transition-colors duration-200 flex items-center">
+          <span className="font-display font-extrabold text-lg sm:text-xl tracking-tight text-white group-hover:text-pink-300 transition-colors duration-200 flex items-center">
             Broke<span className="text-pink-400">ology</span>
           </span>
         </button>
 
         {/* Right: Exactly 5 Primary Navigation Links with Gliding Animated Active State */}
-        <nav className="hidden md:flex items-center gap-1 bg-[#101633]/90 px-2 py-1 rounded-2xl border border-white/10 shadow-lg relative">
+        <nav
+          aria-label="Main Navigation"
+          className="hidden md:flex items-center gap-1 bg-[#101633]/90 px-2 py-1 rounded-2xl border border-white/10 shadow-lg relative"
+        >
           {primaryNavItems.map((item) => {
             const isActive = currentScreen === item.id;
             return (
               <button
                 key={item.id}
                 onClick={() => handleNavClick(item)}
-                className={`relative px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors duration-200 cursor-pointer flex items-center gap-1.5 ${
+                aria-current={isActive ? 'page' : undefined}
+                className={`relative px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors duration-200 cursor-pointer flex items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-pink-400 focus-visible:outline-offset-1 ${
                   isActive ? 'text-white font-bold' : 'text-slate-300 hover:text-white hover:bg-white/5'
                 }`}
               >
@@ -116,7 +127,10 @@ export const Header: React.FC = () => {
           <div className="relative">
             <button
               onClick={() => setMoreMenuOpen(!moreMenuOpen)}
-              className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+              aria-haspopup="true"
+              aria-expanded={moreMenuOpen}
+              aria-label="More navigation links"
+              className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-pink-400 focus-visible:outline-offset-1 ${
                 currentScreen === 'tracker' || currentScreen === 'moneyverse' || currentScreen === 'result'
                   ? 'text-pink-400 font-bold bg-white/5'
                   : 'text-slate-400 hover:text-white hover:bg-white/5'
@@ -126,13 +140,18 @@ export const Header: React.FC = () => {
             </button>
 
             {moreMenuOpen && (
-              <div className="absolute right-0 top-full mt-2 w-40 glass-panel-glow p-1.5 rounded-2xl border border-pink-500/30 shadow-2xl z-50 text-left flex flex-col gap-1">
+              <div
+                role="menu"
+                aria-label="Secondary navigation"
+                className="absolute right-0 top-full mt-2 w-40 glass-panel-glow p-1.5 rounded-2xl border border-pink-500/30 shadow-2xl z-50 text-left flex flex-col gap-1"
+              >
                 <button
+                  role="menuitem"
                   onClick={() => {
                     setCurrentScreen('tracker');
                     setMoreMenuOpen(false);
                   }}
-                  className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors ${
+                  className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors focus-visible:outline-2 focus-visible:outline-pink-400 ${
                     currentScreen === 'tracker' ? 'bg-pink-500/20 text-pink-300' : 'text-slate-200 hover:bg-white/10'
                   }`}
                 >
@@ -140,11 +159,12 @@ export const Header: React.FC = () => {
                   <span>Expense Tracker</span>
                 </button>
                 <button
+                  role="menuitem"
                   onClick={() => {
                     setCurrentScreen('moneyverse');
                     setMoreMenuOpen(false);
                   }}
-                  className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors ${
+                  className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors focus-visible:outline-2 focus-visible:outline-pink-400 ${
                     currentScreen === 'moneyverse' ? 'bg-pink-500/20 text-pink-300' : 'text-slate-200 hover:bg-white/10'
                   }`}
                 >
@@ -152,11 +172,12 @@ export const Header: React.FC = () => {
                   <span>3D Moneyverse</span>
                 </button>
                 <button
+                  role="menuitem"
                   onClick={() => {
                     setCurrentScreen('result');
                     setMoreMenuOpen(false);
                   }}
-                  className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:bg-white/10 flex items-center gap-2 cursor-pointer transition-colors"
+                  className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:bg-white/10 flex items-center gap-2 cursor-pointer transition-colors focus-visible:outline-2 focus-visible:outline-pink-400"
                 >
                   <span>Challenge Result</span>
                 </button>
@@ -168,19 +189,48 @@ export const Header: React.FC = () => {
         {/* Right Section: Compact Status & Tools */}
         <div className="flex items-center gap-2.5 shrink-0">
           {/* Remaining Balance Pill */}
-          <div className="hidden sm:flex items-center gap-2 bg-[#121936] px-3 py-1.5 rounded-xl border border-white/10 text-xs font-semibold">
-            <span className="text-slate-400">Day {currentDay}/30</span>
-            <span className="text-slate-600">·</span>
+          <div
+            role="status"
+            aria-label={`Current status: Day ${currentDay} of 30, remaining balance ₹${remainingBudget.toLocaleString()}`}
+            className="hidden sm:flex items-center gap-2 bg-[#121936] px-3 py-1.5 rounded-xl border border-white/10 text-xs font-semibold"
+          >
+            <span className="text-slate-300">Day {currentDay}/30</span>
+            <span className="text-slate-500" aria-hidden="true">·</span>
             <span className="font-bold text-pink-400">
               <AnimatedRupee amount={remainingBudget} />
             </span>
           </div>
 
+          {/* Sound Synthesizer Audio Toggle */}
+          <button
+            onClick={toggleAudioMute}
+            title={isAudioMuted ? 'Unmute Sound Effects (Press M)' : 'Mute Sound Effects (Press M)'}
+            aria-label={isAudioMuted ? 'Unmute audio effects' : 'Mute audio effects'}
+            className={`p-1.5 rounded-xl transition-all duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-pink-400 ${
+              isAudioMuted
+                ? 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+                : 'text-pink-400 hover:text-pink-300 hover:bg-pink-500/15'
+            }`}
+          >
+            {isAudioMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+          </button>
+
+          {/* Keyboard Shortcuts Dialog Launcher */}
+          <button
+            onClick={() => setShortcutsModalOpen(true)}
+            title="Keyboard Shortcuts & Accessibility (Press ?)"
+            aria-label="View keyboard shortcuts guide"
+            className="hidden sm:inline-flex p-1.5 text-slate-400 hover:text-pink-300 hover:bg-white/5 rounded-xl transition-all duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-pink-400"
+          >
+            <Keyboard className="w-3.5 h-3.5" />
+          </button>
+
           {/* Reset Challenge Confirmation */}
           <button
             onClick={handleResetConfirm}
             title="Reset 30-Day Challenge"
-            className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/15 rounded-xl transition-all duration-150 cursor-pointer"
+            aria-label="Reset challenge back to Day 1 with starting ₹10,000 balance"
+            className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/15 rounded-xl transition-all duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-pink-400"
           >
             <RotateCcw className="w-3.5 h-3.5" />
           </button>
@@ -188,7 +238,9 @@ export const Header: React.FC = () => {
           {/* Mobile Menu Hamburger */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 text-slate-300 hover:text-white rounded-xl bg-white/5 border border-white/10 cursor-pointer"
+            aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-expanded={mobileMenuOpen}
+            className="md:hidden p-2 text-slate-300 hover:text-white rounded-xl bg-white/5 border border-white/10 cursor-pointer focus-visible:outline-2 focus-visible:outline-pink-400"
           >
             {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
           </button>
@@ -196,7 +248,8 @@ export const Header: React.FC = () => {
           {/* User Avatar Button */}
           <button
             onClick={() => setCurrentScreen('dashboard')}
-            className="w-8 h-8 rounded-full p-0.5 bg-gradient-to-tr from-pink-500 to-indigo-500 cursor-pointer hover:ring-2 hover:ring-pink-400 transition-all duration-150"
+            aria-label="Go to financial journey dashboard"
+            className="w-8 h-8 rounded-full p-0.5 bg-gradient-to-tr from-pink-500 to-indigo-500 cursor-pointer hover:ring-2 hover:ring-pink-400 transition-all duration-150 focus-visible:outline-2 focus-visible:outline-pink-400"
             title="Go to Journey"
           >
             <div className="w-full h-full rounded-full bg-[#161e3f] flex items-center justify-center overflow-hidden">

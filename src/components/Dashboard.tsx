@@ -60,7 +60,7 @@ export const Dashboard: React.FC = () => {
           </h3>
 
           {/* Day list pills */}
-          <div className="w-full flex flex-col gap-1.5">
+          <div className="w-full flex flex-col gap-1.5" role="navigation" aria-label="Day Timeline Navigation">
             {daysList.map((day) => {
               const isPast = day < currentDay;
               const isCurrent = day === currentDay;
@@ -70,10 +70,12 @@ export const Dashboard: React.FC = () => {
                   <button
                     key={day}
                     onClick={() => jumpToDay(day)}
-                    className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white font-bold text-xs shadow-md shadow-pink-500/35 border border-pink-300/40 flex items-center justify-between transition-transform duration-150 hover:-translate-y-0.5 cursor-pointer"
+                    aria-current="step"
+                    aria-label={`Current day: Day ${day}`}
+                    className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white font-bold text-xs shadow-md shadow-pink-500/35 border border-pink-300/40 flex items-center justify-between transition-transform duration-150 hover:-translate-y-0.5 cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
                   >
                     <span>Day {day}</span>
-                    <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                    <span className="w-2 h-2 rounded-full bg-white animate-pulse" aria-hidden="true" />
                   </button>
                 );
               }
@@ -82,23 +84,25 @@ export const Dashboard: React.FC = () => {
                 <button
                   key={day}
                   onClick={() => jumpToDay(day)}
-                  className={`w-full py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-between transition-all duration-150 cursor-pointer ${
+                  aria-label={`Jump to Day ${day}${isPast ? ' (completed)' : ''}`}
+                  className={`w-full py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-between transition-all duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-pink-400 ${
                     isPast
                       ? 'text-cyan-300 hover:bg-white/5'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                      : 'text-slate-300 hover:text-white hover:bg-white/5'
                   }`}
                 >
                   <span>Day {day}</span>
-                  {isPast && <Check className="w-3.5 h-3.5 text-cyan-400 stroke-[3]" />}
+                  {isPast && <Check className="w-3.5 h-3.5 text-cyan-400 stroke-[3]" aria-hidden="true" />}
                 </button>
               );
             })}
 
-            <div className="text-center text-slate-500 text-xs py-1">···</div>
+            <div className="text-center text-slate-500 text-xs py-1" aria-hidden="true">···</div>
 
             <button
               onClick={() => jumpToDay(30)}
-              className="text-[11px] text-pink-400 hover:text-pink-300 hover:underline py-1 font-semibold transition-colors duration-150 cursor-pointer"
+              aria-label="Skip to final Day 30"
+              className="text-[11px] text-pink-400 hover:text-pink-300 hover:underline py-1 font-semibold transition-colors duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-pink-400 rounded"
             >
               Skip to Day 30 →
             </button>
@@ -127,16 +131,18 @@ export const Dashboard: React.FC = () => {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentScreen('tracker')}
-                className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-300 flex items-center gap-1.5 border border-white/10 transition-colors cursor-pointer"
+                aria-label="Open expense tracker"
+                className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-300 flex items-center gap-1.5 border border-white/10 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-pink-400"
               >
-                <Receipt className="w-3.5 h-3.5 text-cyan-400" />
+                <Receipt className="w-3.5 h-3.5 text-cyan-400" aria-hidden="true" />
                 <span>Tracker</span>
               </button>
               <button
                 onClick={() => setCurrentScreen('moneyverse')}
-                className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-300 flex items-center gap-1.5 border border-white/10 transition-colors cursor-pointer"
+                aria-label="Open full 3D Moneyverse map"
+                className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-300 flex items-center gap-1.5 border border-white/10 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-pink-400"
               >
-                <Globe2 className="w-3.5 h-3.5 text-pink-400" />
+                <Globe2 className="w-3.5 h-3.5 text-pink-400" aria-hidden="true" />
                 <span>Full Map</span>
               </button>
             </div>
@@ -187,14 +193,21 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {/* Neon Cyan Progress Bar */}
-            <div className="w-full">
+            <div
+              role="progressbar"
+              aria-valuenow={Math.max(0, 100 - spendingPercentage)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`Remaining budget: ${100 - spendingPercentage}% of ₹10,000`}
+              className="w-full"
+            >
               <div className="w-full h-2.5 bg-slate-900/80 rounded-full overflow-hidden p-0.5 border border-white/10">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-teal-300 shadow-[0_0_12px_rgba(34,211,238,0.6)] transition-all duration-500 ease-out"
                   style={{ width: `${Math.max(4, 100 - spendingPercentage)}%` }}
                 />
               </div>
-              <div className="flex items-center justify-between text-[11px] text-slate-400 mt-2 font-mono">
+              <div className="flex items-center justify-between text-[11px] text-slate-300 mt-2 font-mono">
                 <span className="text-cyan-300 font-bold">{100 - spendingPercentage}% left</span>
                 <span>₹10,000 max</span>
               </div>
@@ -208,12 +221,13 @@ export const Dashboard: React.FC = () => {
                 <h3 className="font-display font-bold text-sm text-white">
                   Today&apos;s Tasks
                 </h3>
-                <span className="text-[11px] text-slate-400 font-mono font-bold">
+                <span className="text-[11px] text-slate-300 font-mono font-bold">
                   {tasks.filter((t) => t.completed).length}/{tasks.length}
                 </span>
               </div>
 
-              <div className="flex flex-col gap-2">
+              <fieldset className="flex flex-col gap-2">
+                <legend className="sr-only">Tasks for Day {currentDay}</legend>
                 {tasks.map((task) => (
                   <label
                     key={task.id}
@@ -223,7 +237,8 @@ export const Dashboard: React.FC = () => {
                       type="checkbox"
                       checked={task.completed}
                       onChange={() => toggleTask(task.id)}
-                      className="mt-0.5 w-4 h-4 rounded border-slate-600 bg-slate-900 text-pink-500 focus:ring-pink-400 accent-pink-500 cursor-pointer"
+                      aria-label={task.text}
+                      className="mt-0.5 w-4 h-4 rounded border-slate-600 bg-slate-900 text-pink-500 focus:ring-pink-400 accent-pink-500 cursor-pointer focus-visible:outline-2 focus-visible:outline-pink-400"
                     />
                     <span
                       className={`text-xs leading-snug select-none transition-colors duration-150 ${
@@ -236,25 +251,27 @@ export const Dashboard: React.FC = () => {
                     </span>
                   </label>
                 ))}
-              </div>
+              </fieldset>
             </div>
 
             {/* Bottom Actions */}
             <div className="pt-4 mt-4 border-t border-white/5 space-y-2.5">
               <button
                 onClick={triggerEventModal}
-                className="w-full py-2 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all duration-150 cursor-pointer hover:-translate-y-0.5"
+                aria-label="Simulate random unexpected financial event"
+                className="w-full py-2 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all duration-150 cursor-pointer hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-amber-400"
               >
-                <AlertCircle className="w-3.5 h-3.5" />
+                <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>Simulate Unexpected Event</span>
               </button>
 
               <button
                 onClick={advanceDay}
-                className="w-full btn-glow-pink py-3.5 px-4 rounded-xl text-white font-display font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-xl hover:-translate-y-0.5 active:translate-y-0"
+                aria-label={`Advance to Day ${currentDay + 1}`}
+                className="w-full btn-glow-pink py-3.5 px-4 rounded-xl text-white font-display font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-xl hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-pink-400"
               >
                 <span>Continue</span>
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
           </div>

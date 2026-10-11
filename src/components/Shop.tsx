@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useGame, INITIAL_PRODUCTS } from '../context/GameContext';
 import { ProductIllustration } from './Artwork/ProductIllustration';
 import { AnimatedRupee } from './AnimatedRupee';
@@ -27,14 +27,37 @@ export const Shop: React.FC = () => {
   const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
   const [lastPurchasedTotal, setLastPurchasedTotal] = useState<number>(0);
 
-  const categories = ['All', 'Food', 'Travel', 'Lifestyle', 'Essentials'];
+  const categories = useMemo(() => ['All', 'Food', 'Travel', 'Lifestyle', 'Essentials'], []);
+  const toastTimerRef = useRef<number | null>(null);
 
-  const filteredProducts =
-    activeCategory === 'All'
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showSimulatorModal) {
+        setShowSimulatorModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showSimulatorModal]);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current !== null) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
+
+  const filteredProducts = useMemo(() => {
+    return activeCategory === 'All'
       ? INITIAL_PRODUCTS
       : INITIAL_PRODUCTS.filter((p) => p.category === activeCategory);
+  }, [activeCategory]);
 
-  const cartTotal = cart.reduce((sum, item) => sum + item.price, 0);
+  const cartTotal = useMemo(() => {
+    return cart.reduce((sum, item) => sum + item.price, 0);
+  }, [cart]);
+
   const projectedBalance = remainingBudget - cartTotal;
   const isOverBudget = projectedBalance < 0;
 
@@ -43,7 +66,11 @@ export const Shop: React.FC = () => {
     confirmPurchase();
     setShowSimulatorModal(false);
     setShowSuccessToast(true);
-    setTimeout(() => setShowSuccessToast(false), 3000);
+    if (toastTimerRef.current !== null) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = window.setTimeout(() => {
+      setShowSuccessToast(false);
+      toastTimerRef.current = null;
+    }, 3000);
   };
 
   const handleCancel = () => {
@@ -67,13 +94,14 @@ export const Shop: React.FC = () => {
         {/* Cart Pill Indicator Matching Screen 3 */}
         <button
           onClick={() => setShowSimulatorModal(true)}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-bold text-xs transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer ${
+          aria-label={`Open cart simulator with ${cart.length} items, total ₹${cartTotal.toLocaleString()}`}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-bold text-xs transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-pink-400 ${
             cart.length > 0
               ? 'btn-glow-pink text-white shadow-xl'
               : 'glass-panel text-slate-200 border-white/10 hover:border-pink-400/40'
           }`}
         >
-          <ShoppingBag className="w-4 h-4" />
+          <ShoppingBag className="w-4 h-4" aria-hidden="true" />
           <span>Cart ({cart.length})</span>
           {cart.length > 0 && (
             <span className="font-mono text-pink-100 ml-1">· ₹{cartTotal.toLocaleString()}</span>
@@ -82,14 +110,20 @@ export const Shop: React.FC = () => {
       </div>
 
       {/* Category Filter Pills Matching Screen 3 */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-8 scrollbar-none">
+      <div
+        role="toolbar"
+        aria-label="Filter products by category"
+        className="flex items-center gap-2 overflow-x-auto pb-2 mb-8 scrollbar-none"
+      >
         {categories.map((cat) => {
           const isActive = activeCategory === cat;
           return (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
-              className={`px-5 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 cursor-pointer hover:-translate-y-0.5 active:translate-y-0 ${
+              aria-label={`Filter by ${cat}`}
+              aria-pressed={isActive}
+              className={`px-5 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-pink-400 hover:-translate-y-0.5 active:translate-y-0 ${
                 isActive
                   ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-500/35 border border-pink-300/40'
                   : 'glass-pill text-slate-300 hover:text-white hover:bg-white/10 border-white/10'
@@ -137,14 +171,18 @@ export const Shop: React.FC = () => {
               <div className="flex items-center gap-2 pt-2 border-t border-white/5">
                 <button
                   onClick={() => addToCart(product)}
-                  className="flex-1 py-2.5 px-4 rounded-xl bg-[#18234c] hover:bg-gradient-to-r hover:from-pink-500 hover:to-rose-500 hover:text-white text-slate-100 border border-white/10 hover:border-pink-300/40 text-xs font-bold flex items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer shadow-md hover:shadow-pink-500/30 hover:-translate-y-0.5 active:translate-y-0"
+                  aria-label={`Add ${product.name} to cart for ₹${product.price.toLocaleString()}`}
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-[#18234c] hover:bg-gradient-to-r hover:from-pink-500 hover:to-rose-500 hover:text-white text-slate-100 border border-white/10 hover:border-pink-300/40 text-xs font-bold flex items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer shadow-md hover:shadow-pink-500/30 hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-pink-400"
                 >
-                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" aria-hidden="true" />
                   <span>Add</span>
                 </button>
 
                 {inCartCount > 0 && (
-                  <span className="w-8 h-8 rounded-xl bg-pink-500/25 border border-pink-400/50 text-pink-300 text-xs font-black flex items-center justify-center font-mono shadow-inner animate-scale-in">
+                  <span
+                    aria-label={`${inCartCount} in cart`}
+                    className="w-8 h-8 rounded-xl bg-pink-500/25 border border-pink-400/50 text-pink-300 text-xs font-black flex items-center justify-center font-mono shadow-inner animate-scale-in"
+                  >
                     {inCartCount}
                   </span>
                 )}
@@ -158,13 +196,15 @@ export const Shop: React.FC = () => {
       <AnimatePresence>
         {showSuccessToast && (
           <motion.div
+            role="status"
+            aria-live="polite"
             initial={{ opacity: 0, y: 16, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.95 }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
             className="fixed bottom-6 right-6 z-50 bg-emerald-600/95 text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 backdrop-blur-md border border-emerald-400/40"
           >
-            <CheckCircle className="w-5 h-5 text-emerald-200 shrink-0" />
+            <CheckCircle className="w-5 h-5 text-emerald-200 shrink-0" aria-hidden="true" />
             <span className="text-xs font-bold">
               Purchase confirmed! ₹{lastPurchasedTotal.toLocaleString()} deducted.
             </span>
@@ -188,35 +228,39 @@ export const Shop: React.FC = () => {
 
             {/* Modal Dialog */}
             <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="spending-simulator-title"
               initial={{ opacity: 0, scale: 0.95, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 8 }}
               transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-              className="glass-panel-glow w-full max-w-lg p-6 sm:p-8 rounded-3xl border border-pink-500/40 text-left shadow-2xl relative z-10"
+              className="glass-panel-glow w-full max-w-lg p-6 sm:p-8 rounded-3xl border border-pink-500/40 text-left shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto"
             >
               <button
                 onClick={handleCancel}
-                className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-lg transition-colors duration-150 cursor-pointer"
+                aria-label="Close spending simulator dialog"
+                className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-lg transition-colors duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-pink-400"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5" aria-hidden="true" />
               </button>
 
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-9 h-9 rounded-2xl bg-pink-500/20 text-pink-400 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-2xl bg-pink-500/20 text-pink-400 flex items-center justify-center" aria-hidden="true">
                   <ShoppingBag className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-display font-extrabold text-lg text-white">
+                  <h3 id="spending-simulator-title" className="font-display font-extrabold text-lg text-white">
                     Spending Simulator
                   </h3>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-300">
                     Simulating does not deduct funds until confirmed.
                   </p>
                 </div>
               </div>
 
               {cart.length === 0 ? (
-                <div className="py-10 text-center text-slate-400 text-xs">
+                <div className="py-10 text-center text-slate-300 text-xs">
                   Your cart is empty. Add items from the shop to test financial choices!
                 </div>
               ) : (
@@ -228,7 +272,7 @@ export const Shop: React.FC = () => {
                     >
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-slate-100">{item.name}</span>
-                        <span className="text-[10px] text-slate-400 bg-white/10 px-2 py-0.5 rounded-full">
+                        <span className="text-[10px] text-slate-300 bg-white/10 px-2 py-0.5 rounded-full">
                           {item.category}
                         </span>
                       </div>
@@ -236,10 +280,11 @@ export const Shop: React.FC = () => {
                         <span className="text-pink-300 font-bold">₹{item.price.toLocaleString()}</span>
                         <button
                           onClick={() => removeFromCart(item.id)}
-                          className="text-slate-500 hover:text-rose-400 transition-colors duration-150 cursor-pointer"
+                          aria-label={`Remove ${item.name} from cart`}
+                          className="text-slate-400 hover:text-rose-400 p-1 rounded-lg transition-colors duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-pink-400"
                           title="Remove"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4" aria-hidden="true" />
                         </button>
                       </div>
                     </div>

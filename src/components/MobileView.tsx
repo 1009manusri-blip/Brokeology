@@ -36,17 +36,17 @@ export const MobileView: React.FC = () => {
       </div>
 
       {/* Realistic Smartphone Chassis Frame Matching Screen 8 */}
-      <div className="relative w-[340px] sm:w-[380px] h-[740px] bg-[#0c1022] rounded-[48px] border-[8px] border-[#252f52] shadow-2xl shadow-pink-500/10 overflow-hidden flex flex-col justify-between">
+      <div className="relative w-full max-w-[340px] sm:max-w-[380px] h-[740px] max-h-[85vh] bg-[#0c1022] rounded-[40px] sm:rounded-[48px] border-[6px] sm:border-[8px] border-[#252f52] shadow-2xl shadow-pink-500/10 overflow-hidden flex flex-col justify-between mx-auto">
         {/* Dynamic Island / Notch */}
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-28 h-5 bg-black rounded-full z-30 flex items-center justify-center">
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-28 h-5 bg-black rounded-full z-30 flex items-center justify-center pointer-events-none" aria-hidden="true">
           <div className="w-2.5 h-2.5 rounded-full bg-[#182348] mr-2" />
           <div className="w-1.5 h-1.5 rounded-full bg-cyan-400/40" />
         </div>
 
         {/* Mobile Header Bar */}
-        <div className="pt-8 px-5 pb-3 bg-[#0a0e22]/90 backdrop-blur-md border-b border-white/5 flex items-center justify-between z-20">
+        <div className="pt-8 px-4 sm:px-5 pb-3 bg-[#0a0e22]/90 backdrop-blur-md border-b border-white/5 flex items-center justify-between z-20">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-pink-500 flex items-center justify-center text-white font-bold text-xs">
+            <div className="w-6 h-6 rounded-lg bg-pink-500 flex items-center justify-center text-white font-bold text-xs" aria-hidden="true">
               ₹
             </div>
             <span className="font-display font-black text-sm text-white">
@@ -54,7 +54,11 @@ export const MobileView: React.FC = () => {
             </span>
           </div>
 
-          <button className="text-slate-400 hover:text-white transition-colors duration-150 cursor-pointer">
+          <button
+            onClick={() => setCurrentScreen('dashboard')}
+            aria-label="Open mobile navigation menu"
+            className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-slate-300 hover:text-white transition-colors duration-150 cursor-pointer rounded-xl focus-visible:outline-2 focus-visible:outline-pink-400"
+          >
             <Menu className="w-4 h-4" />
           </button>
         </div>
@@ -145,17 +149,22 @@ export const MobileView: React.FC = () => {
         </div>
 
         {/* Mobile Bottom Navigation Bar Matching Screen 8 */}
-        <div className="pt-2 pb-5 px-4 bg-[#0a0e22]/95 backdrop-blur-md border-t border-white/10 flex items-center justify-around z-20">
+        <nav
+          aria-label="Mobile Bottom Navigation"
+          className="pt-2 pb-5 px-4 bg-[#0a0e22]/95 backdrop-blur-md border-t border-white/10 flex items-center justify-around z-20"
+        >
           <button
             onClick={() => {
               setActiveBottomTab('home');
               setCurrentScreen('dashboard');
             }}
-            className={`flex flex-col items-center gap-1 text-[10px] font-semibold transition-colors duration-150 cursor-pointer ${
-              activeBottomTab === 'home' ? 'text-pink-400' : 'text-slate-400 hover:text-white'
+            aria-label="Home Dashboard"
+            aria-current={activeBottomTab === 'home' ? 'page' : undefined}
+            className={`min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-1 text-[10px] font-semibold transition-colors duration-150 cursor-pointer rounded-xl focus-visible:outline-2 focus-visible:outline-pink-400 ${
+              activeBottomTab === 'home' ? 'text-pink-400 font-bold' : 'text-slate-300 hover:text-white'
             }`}
           >
-            <Compass className="w-4 h-4" />
+            <Compass className="w-4 h-4" aria-hidden="true" />
             <span>Home</span>
           </button>
 
@@ -164,11 +173,13 @@ export const MobileView: React.FC = () => {
               setActiveBottomTab('shop');
               setCurrentScreen('shop');
             }}
-            className={`flex flex-col items-center gap-1 text-[10px] font-semibold transition-colors duration-150 cursor-pointer ${
-              activeBottomTab === 'shop' ? 'text-pink-400' : 'text-slate-400 hover:text-white'
+            aria-label="Campus Shop"
+            aria-current={activeBottomTab === 'shop' ? 'page' : undefined}
+            className={`min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-1 text-[10px] font-semibold transition-colors duration-150 cursor-pointer rounded-xl focus-visible:outline-2 focus-visible:outline-pink-400 ${
+              activeBottomTab === 'shop' ? 'text-pink-400 font-bold' : 'text-slate-300 hover:text-white'
             }`}
           >
-            <ShoppingBag className="w-4 h-4" />
+            <ShoppingBag className="w-4 h-4" aria-hidden="true" />
             <span>Shop</span>
           </button>
 
@@ -177,11 +188,13 @@ export const MobileView: React.FC = () => {
               setActiveBottomTab('tracker');
               setCurrentScreen('tracker');
             }}
-            className={`flex flex-col items-center gap-1 text-[10px] font-semibold transition-colors duration-150 cursor-pointer ${
-              activeBottomTab === 'tracker' ? 'text-pink-400' : 'text-slate-400 hover:text-white'
+            aria-label="Expense Tracker"
+            aria-current={activeBottomTab === 'tracker' ? 'page' : undefined}
+            className={`min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-1 text-[10px] font-semibold transition-colors duration-150 cursor-pointer rounded-xl focus-visible:outline-2 focus-visible:outline-pink-400 ${
+              activeBottomTab === 'tracker' ? 'text-pink-400 font-bold' : 'text-slate-300 hover:text-white'
             }`}
           >
-            <Receipt className="w-4 h-4" />
+            <Receipt className="w-4 h-4" aria-hidden="true" />
             <span>Tracker</span>
           </button>
 
@@ -190,14 +203,16 @@ export const MobileView: React.FC = () => {
               setActiveBottomTab('insights');
               setCurrentScreen('insights');
             }}
-            className={`flex flex-col items-center gap-1 text-[10px] font-semibold transition-colors duration-150 cursor-pointer ${
-              activeBottomTab === 'insights' ? 'text-pink-400' : 'text-slate-400 hover:text-white'
+            aria-label="Financial Insights"
+            aria-current={activeBottomTab === 'insights' ? 'page' : undefined}
+            className={`min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-1 text-[10px] font-semibold transition-colors duration-150 cursor-pointer rounded-xl focus-visible:outline-2 focus-visible:outline-pink-400 ${
+              activeBottomTab === 'insights' ? 'text-pink-400 font-bold' : 'text-slate-300 hover:text-white'
             }`}
           >
-            <PieChart className="w-4 h-4" />
+            <PieChart className="w-4 h-4" aria-hidden="true" />
             <span>Insights</span>
           </button>
-        </div>
+        </nav>
       </div>
     </div>
   );

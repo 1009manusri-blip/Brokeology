@@ -7,9 +7,13 @@ interface Props {
 
 export const ProductIllustration: React.FC<Props> = ({ type, className = 'w-full h-40' }) => {
   return (
-    <div className={`relative flex items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-b from-[#1b254b] via-[#141b38] to-[#0c1228] p-3 border border-white/10 shadow-inner group ${className}`}>
+    <div
+      role="img"
+      aria-label={`Product illustration: ${type}`}
+      className={`relative flex items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-b from-[#1b254b] via-[#141b38] to-[#0c1228] p-3 border border-white/10 shadow-inner group ${className}`}
+    >
       {/* Background item pedestal glow */}
-      <div className="absolute inset-0 bg-radial from-pink-500/10 via-transparent to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-radial from-pink-500/10 via-transparent to-transparent pointer-events-none" aria-hidden="true" />
 
       {type === 'coffee' && (
         <svg viewBox="0 0 220 170" className="w-full h-full object-contain filter drop-shadow-[0_10px_16px_rgba(0,0,0,0.5)]">

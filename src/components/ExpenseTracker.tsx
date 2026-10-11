@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
 import { ExpenseCategory } from '../types/game';
 import { AnimatedRupee } from './AnimatedRupee';
+import { validateExpenseInput } from '../utils/finance';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Coffee,
@@ -11,6 +12,7 @@ import {
   Plus,
   Trash2,
   X,
+  AlertCircle,
 } from 'lucide-react';
 
 export const ExpenseTracker: React.FC = () => {
@@ -24,6 +26,7 @@ export const ExpenseTracker: React.FC = () => {
 
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [formData, setFormData] = useState<{
     name: string;
     amount: string;
@@ -36,15 +39,29 @@ export const ExpenseTracker: React.FC = () => {
     note: '',
   });
 
-  const categories = ['All', 'Food', 'Travel', 'Lifestyle', 'Essentials'];
+  const categories = useMemo(() => ['All', 'Food', 'Travel', 'Lifestyle', 'Essentials'], []);
 
-  const filteredTransactions =
-    selectedCategory === 'All'
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showAddModal) {
+        setShowAddModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showAddModal]);
+
+  const filteredTransactions = useMemo(() => {
+    return selectedCategory === 'All'
       ? transactions
       : transactions.filter((t) => t.category === selectedCategory);
+  }, [transactions, selectedCategory]);
 
-  const totalSpentAll = transactions.reduce((acc, t) => acc + t.amount, 0);
-  const percentageSpent = Math.min(100, Math.round((totalSpentAll / initialBudget) * 100));
+  const { totalSpentAll, percentageSpent } = useMemo(() => {
+    const total = transactions.reduce((acc, t) => acc + t.amount, 0);
+    const pct = Math.min(100, Math.round((total / initialBudget) * 100));
+    return { totalSpentAll: total, percentageSpent: pct };
+  }, [transactions, initialBudget]);
 
   const getCategoryIcon = (category: ExpenseCategory, name: string) => {
     if (name.toLowerCase().includes('coffee') || category === 'Food') {
@@ -78,13 +95,17 @@ export const ExpenseTracker: React.FC = () => {
   const handleAddSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const parsedAmount = parseFloat(formData.amount);
-    if (!formData.name || isNaN(parsedAmount) || parsedAmount <= 0) return;
+    const validation = validateExpenseInput(formData.name, parsedAmount, formData.category);
+    if (!validation.valid) {
+      setErrorMessage(validation.error || 'Please provide valid expense details.');
+      return;
+    }
 
     addExpense({
-      name: formData.name,
+      name: formData.name.trim(),
       amount: parsedAmount,
       category: formData.category,
-      note: formData.note,
+      note: formData.note.trim() || undefined,
     });
 
     setFormData({
@@ -93,6 +114,7 @@ export const ExpenseTracker: React.FC = () => {
       category: 'Food',
       note: '',
     });
+    setErrorMessage(null);
     setShowAddModal(false);
   };
 
@@ -114,12 +136,18 @@ export const ExpenseTracker: React.FC = () => {
         </div>
 
         {/* Category Filter Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+        <div
+          role="toolbar"
+          aria-label="Filter expenses by category"
+          className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none"
+        >
           {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 cursor-pointer hover:-translate-y-0.5 active:translate-y-0 ${
+              aria-label={`Filter by ${cat}`}
+              aria-pressed={selectedCategory === cat}
+              className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-pink-400 hover:-translate-y-0.5 active:translate-y-0 ${
                 selectedCategory === cat
                   ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md shadow-pink-500/30 border border-pink-300/30'
                   : 'glass-pill text-slate-300 hover:text-white hover:bg-white/10 border-white/5'
@@ -179,10 +207,11 @@ export const ExpenseTracker: React.FC = () => {
 
                   <button
                     onClick={() => deleteExpense(tx.id)}
-                    className="opacity-0 group-hover:opacity-100 p-2 text-slate-500 hover:text-rose-400 rounded-xl hover:bg-rose-500/10 transition-all duration-150 cursor-pointer"
-                    title="Remove transaction"
+                    aria-label={`Delete expense ${tx.name} for ₹${tx.amount.toLocaleString()}`}
+                    className="opacity-0 group-hover:opacity-100 focus:opacity-100 focus-visible:opacity-100 p-2 text-slate-400 hover:text-rose-400 rounded-xl hover:bg-rose-500/10 transition-all duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-pink-400"
+                    title={`Delete ${tx.name}`}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-4 h-4" aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -192,7 +221,7 @@ export const ExpenseTracker: React.FC = () => {
 
         {/* Right Column: Total Spent & Donut Chart Card */}
         <div className="lg:col-span-4 glass-panel p-6 rounded-3xl border border-white/10 shadow-2xl text-center flex flex-col items-center">
-          <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">
+          <div className="text-xs text-slate-300 font-semibold uppercase tracking-wider mb-1">
             Total Spent
           </div>
           <div className="font-display font-black text-3xl sm:text-4xl text-white tracking-tight mb-6">
@@ -200,8 +229,15 @@ export const ExpenseTracker: React.FC = () => {
           </div>
 
           {/* SVG Donut Progress Chart with Smooth Stroke Transition */}
-          <div className="relative w-40 h-40 flex items-center justify-center my-2">
-            <svg className="w-full h-full -rotate-90" viewBox="0 0 140 140">
+          <div
+            role="progressbar"
+            aria-valuenow={percentageSpent}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`Budget consumed: ${percentageSpent}% of ₹10,000`}
+            className="relative w-40 h-40 flex items-center justify-center my-2"
+          >
+            <svg className="w-full h-full -rotate-90" viewBox="0 0 140 140" aria-hidden="true">
               <circle
                 cx="70"
                 cy="70"
@@ -231,11 +267,11 @@ export const ExpenseTracker: React.FC = () => {
               </defs>
             </svg>
 
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <div className="absolute inset-0 flex flex-col items-center justify-center" aria-hidden="true">
               <span className="font-display font-black text-2xl text-white">
                 {percentageSpent}%
               </span>
-              <span className="text-[10px] text-slate-400 font-mono">
+              <span className="text-[10px] text-slate-300 font-mono">
                 of ₹10,000
               </span>
             </div>
@@ -273,32 +309,44 @@ export const ExpenseTracker: React.FC = () => {
             />
 
             <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="add-expense-modal-title"
               initial={{ opacity: 0, scale: 0.95, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 8 }}
               transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-              className="glass-panel-glow w-full max-w-md p-6 sm:p-8 rounded-3xl border border-pink-500/40 text-left shadow-2xl relative z-10"
+              className="glass-panel-glow w-full max-w-md p-6 sm:p-8 rounded-3xl border border-pink-500/40 text-left shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto"
             >
               <button
                 onClick={() => setShowAddModal(false)}
-                className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-lg transition-colors duration-150 cursor-pointer"
+                aria-label="Close add expense dialog"
+                className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-lg transition-colors duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-pink-400"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5" aria-hidden="true" />
               </button>
 
-              <h3 className="font-display font-extrabold text-lg text-white mb-1">
+              <h3 id="add-expense-modal-title" className="font-display font-extrabold text-lg text-white mb-1">
                 Add New Expense
               </h3>
-              <p className="text-xs text-slate-400 mb-4">
+              <p className="text-xs text-slate-300 mb-4">
                 Manually log a transaction for Day {currentDay}.
               </p>
 
+              {errorMessage && (
+                <div role="alert" className="mb-4 p-3 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-200 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" aria-hidden="true" />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
+
               <form onSubmit={handleAddSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  <label htmlFor="expense-name" className="block text-xs font-semibold text-slate-200 mb-1">
                     Expense Description
                   </label>
                   <input
+                    id="expense-name"
                     type="text"
                     required
                     placeholder="e.g. Campus Lunch, Stationery"
@@ -310,10 +358,11 @@ export const ExpenseTracker: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    <label htmlFor="expense-amount" className="block text-xs font-semibold text-slate-200 mb-1">
                       Amount (₹)
                     </label>
                     <input
+                      id="expense-amount"
                       type="number"
                       step="1"
                       min="1"
@@ -326,10 +375,11 @@ export const ExpenseTracker: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    <label htmlFor="expense-category" className="block text-xs font-semibold text-slate-200 mb-1">
                       Category
                     </label>
                     <select
+                      id="expense-category"
                       value={formData.category}
                       onChange={(e) =>
                         setFormData({ ...formData, category: e.target.value as ExpenseCategory })
@@ -346,10 +396,11 @@ export const ExpenseTracker: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  <label htmlFor="expense-note" className="block text-xs font-semibold text-slate-200 mb-1">
                     Optional Note
                   </label>
                   <input
+                    id="expense-note"
                     type="text"
                     placeholder="e.g. Shared split with roommates"
                     value={formData.note}
@@ -362,13 +413,13 @@ export const ExpenseTracker: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowAddModal(false)}
-                    className="flex-1 py-3 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-bold transition-all duration-150 cursor-pointer hover:-translate-y-0.5 active:translate-y-0"
+                    className="flex-1 py-3 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-bold transition-all duration-150 cursor-pointer hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-pink-400"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 btn-glow-pink py-3 px-4 rounded-xl text-white font-display font-bold text-xs uppercase cursor-pointer shadow-lg"
+                    className="flex-1 btn-glow-pink py-3 px-4 rounded-xl text-white font-display font-bold text-xs uppercase cursor-pointer shadow-lg focus-visible:outline-2 focus-visible:outline-pink-400"
                   >
                     Save Expense
                   </button>

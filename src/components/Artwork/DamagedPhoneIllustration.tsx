@@ -3,7 +3,12 @@ import React from 'react';
 export const DamagedPhoneIllustration: React.FC = () => {
   return (
     <div className="relative w-48 h-64 md:w-56 md:h-72 mx-auto flex items-center justify-center">
-      <svg viewBox="0 0 240 320" className="w-full h-full drop-shadow-[0_0_30px_rgba(244,63,94,0.35)]">
+      <svg
+        role="img"
+        aria-label="Illustration of damaged smartphone with cracked glass screen"
+        viewBox="0 0 240 320"
+        className="w-full h-full drop-shadow-[0_0_30px_rgba(244,63,94,0.35)]"
+      >
         <defs>
           <linearGradient id="phoneBody" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#334155" />

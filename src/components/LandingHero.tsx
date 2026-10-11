@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useGame } from '../context/GameContext';
 import { ThreeMoneyverse } from './ThreeMoneyverse';
 import { CinematicHeroScene } from './Artwork/CinematicHeroScene';
@@ -30,6 +30,100 @@ import {
   Globe2,
 } from 'lucide-react';
 
+const TEST_DILEMMAS = [
+  {
+    id: 'latte',
+    name: 'Artisanal Cafe Latte',
+    price: 120,
+    category: 'Food' as const,
+    imageType: 'coffee' as const,
+    tag: 'Daily Indulgence',
+    desc: 'Hot specialty double-shot latte at the campus quad cafe.',
+    impact: 'Consumes ₹120. Over 30 days, daily coffee equals ₹3,600 (36% of your entire budget).',
+    safeRating: 'Low risk if occasional, critical if daily habit',
+  },
+  {
+    id: 'movie',
+    name: 'Friday Blockbuster Night',
+    price: 450,
+    category: 'Lifestyle' as const,
+    imageType: 'movie' as const,
+    tag: 'Weekend Social',
+    desc: 'IMAX premiere ticket with drinks and shared caramel popcorn.',
+    impact: 'Takes 4.5% of your starter capital in a single evening.',
+    safeRating: 'Moderate social expense — requires skipping 2 takeout meals',
+  },
+  {
+    id: 'sneakers',
+    name: 'Pastel Streetwear Sneakers',
+    price: 2999,
+    category: 'Lifestyle' as const,
+    imageType: 'shoes' as const,
+    tag: 'Impulse Temptation',
+    desc: 'Limited seasonal sneaker pair on student clearance sale.',
+    impact: 'Wipes out 30% of your entire monthly fund instantly.',
+    safeRating: 'Severe risk — destroys your emergency buffer until Day 30',
+  },
+];
+
+const LANDMARK_DETAILS = {
+  College: {
+    title: 'University Campus & Lecture Halls',
+    icon: <GraduationCap className="w-5 h-5 text-amber-400" />,
+    tag: 'Academic Core',
+    theme: 'text-amber-400',
+    borderGlow: 'border-amber-400/40',
+    dilemma: 'New Reference Books (₹1,270) vs Shared Library Notes (₹0)',
+    analysis:
+      'College expenses sneak up on you with project printing, textbook kits, and exam materials. Students who borrow or purchase second-hand notes save upwards of ₹3,000 every semester.',
+    keyTakeaway: 'Always check if study materials exist in the library archive before swiping your card.',
+  },
+  Cafe: {
+    title: 'Quadside Cafe & Social Lounge',
+    icon: <Coffee className="w-5 h-5 text-pink-400" />,
+    tag: 'Discretionary Food',
+    theme: 'text-pink-400',
+    borderGlow: 'border-pink-400/40',
+    dilemma: 'Daily Latte Rush (₹120) vs Hostel Electric Kettle Tea (₹15)',
+    analysis:
+      'A seemingly harmless ₹120 daily coffee compounds to ₹3,600 over 30 days — more than one-third of your total ₹10,000 monthly allowance.',
+    keyTakeaway: 'Reserve the barista cafe for study groups or weekend treats; brew daily tea in your dorm.',
+  },
+  Bank: {
+    title: 'City Financial Vault & Reserve',
+    icon: <Building2 className="w-5 h-5 text-indigo-400" />,
+    tag: 'Emergency Fortress',
+    theme: 'text-indigo-400',
+    borderGlow: 'border-indigo-400/40',
+    dilemma: 'Locking ₹2,000 Emergency Shield vs Living with ₹0 Buffer',
+    analysis:
+      'Without an emergency reserve, the first cracked phone or medical prescription forces you into high-stress debt. A 20% untouchable buffer guarantees survival.',
+    keyTakeaway: 'The moment Day 1 starts, mentally wall off ₹2,000 as invisible money for true emergencies.',
+  },
+  Home: {
+    title: 'Student Dormitory & Residence',
+    icon: <Home className="w-5 h-5 text-cyan-400" />,
+    tag: 'Fixed Overhead',
+    theme: 'text-cyan-400',
+    borderGlow: 'border-cyan-400/40',
+    dilemma: 'Paying Dorm Rent & Wi-Fi on Day 1 (₹900) vs Delaying Bill',
+    analysis:
+      'Hostel utility charges and shared Wi-Fi can accumulate late fee penalties if ignored. Paying fixed commitments first reveals your true discretionary runway.',
+    keyTakeaway: 'Clear essential fixed costs immediately on Day 1 to avoid deceptive balance illusions.',
+  },
+  Market: {
+    title: 'Old Town Bazaar & Groceries',
+    icon: <ShoppingBag className="w-5 h-5 text-purple-400" />,
+    tag: 'Frugal Essentials',
+    theme: 'text-purple-400',
+    borderGlow: 'border-purple-400/40',
+    dilemma: 'Weekly Wholesale Groceries (₹250) vs Daily Midnight Takeout (₹700)',
+    analysis:
+      'A single grocery run with staple fruits, oats, bread, and milk covers breakfast and snacks for an entire week for less than the cost of one late-night delivery.',
+    keyTakeaway: 'Batch-shop staples on Sunday afternoons when local vendors discount fresh produce.',
+  },
+};
+
 export const LandingHero: React.FC = () => {
   const {
     setCurrentScreen,
@@ -52,43 +146,14 @@ export const LandingHero: React.FC = () => {
   // Crisis stage option (Section 4)
   const [selectedCrisisChoice, setSelectedCrisisChoice] = useState<'official' | 'frugal' | 'borrow'>('frugal');
 
-  // 3 Test Dilemmas for Section 3 Consequence Engine
-  const testDilemmas = [
-    {
-      id: 'latte',
-      name: 'Artisanal Cafe Latte',
-      price: 120,
-      category: 'Food' as const,
-      imageType: 'coffee' as const,
-      tag: 'Daily Indulgence',
-      desc: 'Hot specialty double-shot latte at the campus quad cafe.',
-      impact: 'Consumes ₹120. Over 30 days, daily coffee equals ₹3,600 (36% of your entire budget).',
-      safeRating: 'Low risk if occasional, critical if daily habit',
-    },
-    {
-      id: 'movie',
-      name: 'Friday Blockbuster Night',
-      price: 450,
-      category: 'Lifestyle' as const,
-      imageType: 'movie' as const,
-      tag: 'Weekend Social',
-      desc: 'IMAX premiere ticket with drinks and shared caramel popcorn.',
-      impact: 'Takes 4.5% of your starter capital in a single evening.',
-      safeRating: 'Moderate social expense — requires skipping 2 takeout meals',
-    },
-    {
-      id: 'sneakers',
-      name: 'Pastel Streetwear Sneakers',
-      price: 2999,
-      category: 'Lifestyle' as const,
-      imageType: 'shoes' as const,
-      tag: 'Impulse Temptation',
-      desc: 'Limited seasonal sneaker pair on student clearance sale.',
-      impact: 'Wipes out 30% of your entire monthly fund instantly.',
-      safeRating: 'Severe risk — destroys your emergency buffer until Day 30',
-    },
-  ];
+  const simTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    return () => {
+      if (simTimerRef.current !== null) clearTimeout(simTimerRef.current);
+    };
+  }, []);
 
+  const testDilemmas = TEST_DILEMMAS;
   const activeDilemma = testDilemmas[selectedConsequenceIndex];
   const projectedBalance = Math.max(0, remainingBudget - activeDilemma.price);
   const daysRemaining = Math.max(1, 30 - currentDay);
@@ -104,91 +169,40 @@ export const LandingHero: React.FC = () => {
       note: 'Simulated decision from Consequence Engine',
     });
     setSimulatedPurchaseState('applied');
-    setTimeout(() => {
+    if (simTimerRef.current !== null) clearTimeout(simTimerRef.current);
+    simTimerRef.current = window.setTimeout(() => {
       setSimulatedPurchaseState('preview');
+      simTimerRef.current = null;
     }, 3500);
   };
 
   const handleCancelExpense = () => {
     setSimulatedPurchaseState('cancelled');
-    setTimeout(() => {
+    if (simTimerRef.current !== null) clearTimeout(simTimerRef.current);
+    simTimerRef.current = window.setTimeout(() => {
       setSimulatedPurchaseState('preview');
+      simTimerRef.current = null;
     }, 2500);
   };
 
-  // Landmark Dossier data for Section 2
-  const landmarkDetails = {
-    College: {
-      title: 'University Campus & Lecture Halls',
-      icon: <GraduationCap className="w-5 h-5 text-amber-400" />,
-      tag: 'Academic Core',
-      theme: 'text-amber-400',
-      borderGlow: 'border-amber-400/40',
-      dilemma: 'New Reference Books (₹1,270) vs Shared Library Notes (₹0)',
-      analysis:
-        'College expenses sneak up on you with project printing, textbook kits, and exam materials. Students who borrow or purchase second-hand notes save upwards of ₹3,000 every semester.',
-      keyTakeaway: 'Always check if study materials exist in the library archive before swiping your card.',
-    },
-    Cafe: {
-      title: 'Quadside Cafe & Social Lounge',
-      icon: <Coffee className="w-5 h-5 text-pink-400" />,
-      tag: 'Discretionary Food',
-      theme: 'text-pink-400',
-      borderGlow: 'border-pink-400/40',
-      dilemma: 'Daily Latte Rush (₹120) vs Hostel Electric Kettle Tea (₹15)',
-      analysis:
-        'A seemingly harmless ₹120 daily coffee compounds to ₹3,600 over 30 days — more than one-third of your total ₹10,000 monthly allowance.',
-      keyTakeaway: 'Reserve the barista cafe for study groups or weekend treats; brew daily tea in your dorm.',
-    },
-    Bank: {
-      title: 'City Financial Vault & Reserve',
-      icon: <Building2 className="w-5 h-5 text-indigo-400" />,
-      tag: 'Emergency Fortress',
-      theme: 'text-indigo-400',
-      borderGlow: 'border-indigo-400/40',
-      dilemma: 'Locking ₹2,000 Emergency Shield vs Living with ₹0 Buffer',
-      analysis:
-        'Without an emergency reserve, the first cracked phone or medical prescription forces you into high-stress debt. A 20% untouchable buffer guarantees survival.',
-      keyTakeaway: 'The moment Day 1 starts, mentally wall off ₹2,000 as invisible money for true emergencies.',
-    },
-    Home: {
-      title: 'Student Dormitory & Residence',
-      icon: <Home className="w-5 h-5 text-cyan-400" />,
-      tag: 'Fixed Overhead',
-      theme: 'text-cyan-400',
-      borderGlow: 'border-cyan-400/40',
-      dilemma: 'Paying Dorm Rent & Wi-Fi on Day 1 (₹900) vs Delaying Bill',
-      analysis:
-        'Hostel utility charges and shared Wi-Fi can accumulate late fee penalties if ignored. Paying fixed commitments first reveals your true discretionary runway.',
-      keyTakeaway: 'Clear essential fixed costs immediately on Day 1 to avoid deceptive balance illusions.',
-    },
-    Market: {
-      title: 'Old Town Bazaar & Groceries',
-      icon: <ShoppingBag className="w-5 h-5 text-purple-400" />,
-      tag: 'Frugal Essentials',
-      theme: 'text-purple-400',
-      borderGlow: 'border-purple-400/40',
-      dilemma: 'Weekly Wholesale Groceries (₹250) vs Daily Midnight Takeout (₹700)',
-      analysis:
-        'A single grocery run with staple fruits, oats, bread, and milk covers breakfast and snacks for an entire week for less than the cost of one late-night delivery.',
-      keyTakeaway: 'Batch-shop staples on Sunday afternoons when local vendors discount fresh produce.',
-    },
-  };
-
+  const landmarkDetails = LANDMARK_DETAILS;
   const activeDossier = landmarkDetails[activeLandmark];
 
   // Category breakdown calculations for Section 5 (Financial Story)
-  const categoryTotals: Record<string, number> = {
-    Food: 0,
-    Essentials: 0,
-    Lifestyle: 0,
-    Travel: 0,
-  };
-  transactions.forEach((tx) => {
-    if (categoryTotals[tx.category] !== undefined) {
-      categoryTotals[tx.category] += tx.amount;
-    }
-  });
+  const categoryTotals = useMemo(() => {
+    const totals: Record<string, number> = {
+      Food: 0,
+      Essentials: 0,
+      Lifestyle: 0,
+      Travel: 0,
+    };
+    transactions.forEach((tx) => {
+      if (totals[tx.category] !== undefined) {
+        totals[tx.category] += tx.amount;
+      }
+    });
+    return totals;
+  }, [transactions]);
 
   return (
     <div className="w-full flex flex-col relative text-slate-100 selection:bg-pink-500 selection:text-white">
@@ -347,14 +361,17 @@ export const LandingHero: React.FC = () => {
               </div>
 
               {/* Location Selectors */}
-              <div className="grid grid-cols-5 gap-2 w-full">
+              <div role="tablist" aria-label="Landmark zone selection" className="grid grid-cols-5 gap-2 w-full">
                 {(['College', 'Cafe', 'Bank', 'Home', 'Market'] as const).map((loc) => {
                   const isActive = activeLandmark === loc;
                   return (
                     <button
                       key={loc}
+                      role="tab"
+                      aria-selected={isActive}
+                      aria-label={`Inspect ${loc} landmark zone`}
                       onClick={() => setActiveLandmark(loc)}
-                      className={`py-2 px-1 sm:px-3 rounded-2xl text-xs font-bold transition-all duration-200 cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1.5 text-center ${
+                      className={`py-2 px-1 sm:px-3 rounded-2xl text-xs font-bold transition-all duration-200 cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1.5 text-center focus-visible:outline-2 focus-visible:outline-pink-400 ${
                         isActive
                           ? 'btn-glow-pink text-white shadow-lg scale-102'
                           : 'glass-panel text-slate-300 hover:text-white hover:border-pink-400/40'
@@ -466,7 +483,7 @@ export const LandingHero: React.FC = () => {
           <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Left: 3 Realistic Dilemma Selection Cards */}
             <div className="lg:col-span-5 flex flex-col gap-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1 text-left">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-1 text-left">
                 Select a Purchase Temptation:
               </span>
               {testDilemmas.map((dilemma, idx) => {
@@ -478,14 +495,16 @@ export const LandingHero: React.FC = () => {
                       setSelectedConsequenceIndex(idx);
                       setSimulatedPurchaseState('preview');
                     }}
-                    className={`p-4 rounded-2xl text-left transition-all duration-200 cursor-pointer flex items-center justify-between gap-4 border ${
+                    aria-label={`Evaluate ${dilemma.name} costing ₹${dilemma.price}`}
+                    aria-pressed={isSelected}
+                    className={`p-4 rounded-2xl text-left transition-all duration-200 cursor-pointer flex items-center justify-between gap-4 border focus-visible:outline-2 focus-visible:outline-pink-400 ${
                       isSelected
                         ? 'glass-panel-glow border-pink-400/60 shadow-xl scale-101'
                         : 'glass-panel border-white/5 hover:border-white/20 opacity-80 hover:opacity-100'
                     }`}
                   >
                     <div className="flex items-center gap-3.5">
-                      <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
+                      <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden" aria-hidden="true">
                         {dilemma.imageType === 'coffee' && <Coffee className="w-6 h-6 text-pink-400" />}
                         {dilemma.imageType === 'movie' && <Film className="w-6 h-6 text-purple-400" />}
                         {dilemma.imageType === 'shoes' && <ShoppingBag className="w-6 h-6 text-cyan-400" />}
@@ -497,7 +516,7 @@ export const LandingHero: React.FC = () => {
                         <div className="text-sm font-bold text-white leading-tight">
                           {dilemma.name}
                         </div>
-                        <div className="text-xs text-slate-400 mt-0.5">
+                        <div className="text-xs text-slate-300 mt-0.5">
                           {dilemma.desc.slice(0, 45)}...
                         </div>
                       </div>
@@ -507,7 +526,7 @@ export const LandingHero: React.FC = () => {
                       <div className="text-base font-extrabold font-display text-white">
                         ₹{dilemma.price}
                       </div>
-                      <div className="text-[10px] text-slate-400">One-time</div>
+                      <div className="text-[10px] text-slate-300">One-time</div>
                     </div>
                   </button>
                 );
@@ -903,80 +922,88 @@ export const LandingHero: React.FC = () => {
           {/* 4 Interactive Game Gateways */}
           <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-12">
             {/* 1. Journey / Dashboard */}
-            <div
+            <button
+              type="button"
               onClick={() => setCurrentScreen('dashboard')}
-              className="glass-panel p-6 rounded-3xl border border-white/10 hover:border-pink-400/50 transition-all duration-200 cursor-pointer text-left flex flex-col justify-between group hover:-translate-y-1"
+              aria-label="Enter Day Journey"
+              className="glass-panel p-6 rounded-3xl border border-white/10 hover:border-pink-400/50 transition-all duration-200 cursor-pointer text-left flex flex-col justify-between group hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-pink-400 focus-visible:outline-offset-2"
             >
               <div>
-                <div className="w-10 h-10 rounded-2xl bg-pink-500/20 border border-pink-400/30 flex items-center justify-center mb-4 text-pink-400 group-hover:scale-110 transition-transform">
+                <div className="w-10 h-10 rounded-2xl bg-pink-500/20 border border-pink-400/30 flex items-center justify-center mb-4 text-pink-400 group-hover:scale-110 transition-transform" aria-hidden="true">
                   <Compass className="w-5 h-5" />
                 </div>
-                <h4 className="text-lg font-bold text-white mb-1">Day Journey</h4>
-                <p className="text-xs text-slate-400 leading-relaxed">
+                <h3 className="text-lg font-bold text-white mb-1">Day Journey</h3>
+                <p className="text-xs text-slate-300 leading-relaxed">
                   Active Day 3 timeline, daily checklist, and island command center.
                 </p>
               </div>
               <div className="mt-6 flex items-center gap-1.5 text-xs font-bold text-pink-400">
                 <span>Enter Journey →</span>
               </div>
-            </div>
+            </button>
 
             {/* 2. Shop */}
-            <div
+            <button
+              type="button"
               onClick={() => setCurrentScreen('shop')}
-              className="glass-panel p-6 rounded-3xl border border-white/10 hover:border-pink-400/50 transition-all duration-200 cursor-pointer text-left flex flex-col justify-between group hover:-translate-y-1"
+              aria-label="Browse Campus Shop"
+              className="glass-panel p-6 rounded-3xl border border-white/10 hover:border-pink-400/50 transition-all duration-200 cursor-pointer text-left flex flex-col justify-between group hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-pink-400 focus-visible:outline-offset-2"
             >
               <div>
-                <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 border border-cyan-400/30 flex items-center justify-center mb-4 text-cyan-400 group-hover:scale-110 transition-transform">
+                <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 border border-cyan-400/30 flex items-center justify-center mb-4 text-cyan-400 group-hover:scale-110 transition-transform" aria-hidden="true">
                   <ShoppingBag className="w-5 h-5" />
                 </div>
-                <h4 className="text-lg font-bold text-white mb-1">Campus Shop</h4>
-                <p className="text-xs text-slate-400 leading-relaxed">
+                <h3 className="text-lg font-bold text-white mb-1">Campus Shop</h3>
+                <p className="text-xs text-slate-300 leading-relaxed">
                   Simulated storefront with 6 illustrated products, cart drawer & checkout.
                 </p>
               </div>
               <div className="mt-6 flex items-center gap-1.5 text-xs font-bold text-cyan-400">
                 <span>Browse Shop →</span>
               </div>
-            </div>
+            </button>
 
             {/* 3. Expense Tracker */}
-            <div
+            <button
+              type="button"
               onClick={() => setCurrentScreen('tracker')}
-              className="glass-panel p-6 rounded-3xl border border-white/10 hover:border-pink-400/50 transition-all duration-200 cursor-pointer text-left flex flex-col justify-between group hover:-translate-y-1"
+              aria-label="Open Expense Tracker Ledger"
+              className="glass-panel p-6 rounded-3xl border border-white/10 hover:border-pink-400/50 transition-all duration-200 cursor-pointer text-left flex flex-col justify-between group hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-pink-400 focus-visible:outline-offset-2"
             >
               <div>
-                <div className="w-10 h-10 rounded-2xl bg-purple-500/20 border border-purple-400/30 flex items-center justify-center mb-4 text-purple-400 group-hover:scale-110 transition-transform">
+                <div className="w-10 h-10 rounded-2xl bg-purple-500/20 border border-purple-400/30 flex items-center justify-center mb-4 text-purple-400 group-hover:scale-110 transition-transform" aria-hidden="true">
                   <Receipt className="w-5 h-5" />
                 </div>
-                <h4 className="text-lg font-bold text-white mb-1">Expense Tracker</h4>
-                <p className="text-xs text-slate-400 leading-relaxed">
+                <h3 className="text-lg font-bold text-white mb-1">Expense Tracker</h3>
+                <p className="text-xs text-slate-300 leading-relaxed">
                   Real-time ledger, category filters, interactive donut chart & custom entries.
                 </p>
               </div>
               <div className="mt-6 flex items-center gap-1.5 text-xs font-bold text-purple-400">
                 <span>Open Ledger →</span>
               </div>
-            </div>
+            </button>
 
             {/* 4. 3D World Exploration */}
-            <div
+            <button
+              type="button"
               onClick={() => setCurrentScreen('moneyverse')}
-              className="glass-panel p-6 rounded-3xl border border-white/10 hover:border-pink-400/50 transition-all duration-200 cursor-pointer text-left flex flex-col justify-between group hover:-translate-y-1"
+              aria-label="Explore 3D Moneyverse World"
+              className="glass-panel p-6 rounded-3xl border border-white/10 hover:border-pink-400/50 transition-all duration-200 cursor-pointer text-left flex flex-col justify-between group hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-pink-400 focus-visible:outline-offset-2"
             >
               <div>
-                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-400/30 flex items-center justify-center mb-4 text-amber-400 group-hover:scale-110 transition-transform">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-400/30 flex items-center justify-center mb-4 text-amber-400 group-hover:scale-110 transition-transform" aria-hidden="true">
                   <Globe2 className="w-5 h-5" />
                 </div>
-                <h4 className="text-lg font-bold text-white mb-1">3D Moneyverse</h4>
-                <p className="text-xs text-slate-400 leading-relaxed">
+                <h3 className="text-lg font-bold text-white mb-1">3D Moneyverse</h3>
+                <p className="text-xs text-slate-300 leading-relaxed">
                   Full-screen Three.js exploration with interactive camera panning and hotspots.
                 </p>
               </div>
               <div className="mt-6 flex items-center gap-1.5 text-xs font-bold text-amber-400">
                 <span>Explore World →</span>
               </div>
-            </div>
+            </button>
           </div>
 
           {/* Master CTA Button */}

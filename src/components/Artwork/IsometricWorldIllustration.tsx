@@ -20,6 +20,8 @@ export const IsometricWorldIllustration: React.FC<Props> = ({
       <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
       <svg
+        role="img"
+        aria-label="Isometric illustration of Brokeology 3D island world featuring College, Dorms, Market, Cafe, and Bank"
         viewBox="0 0 900 620"
         className="w-full h-full object-cover"
         preserveAspectRatio="xMidYMid slice"

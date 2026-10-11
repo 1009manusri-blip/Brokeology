@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { GameState, Transaction, ShopProduct, DayTask, ScreenId, ExpenseCategory } from '../types/game';
+import { calculateFinancialMetrics, validateExpenseInput, FinancialMetrics } from '../utils/finance';
+import { soundManager } from '../utils/audio';
 
 const STORAGE_KEY = 'brokeology_game_state_v1';
 
@@ -140,10 +142,21 @@ interface GameContextType {
   setIsPhoneDeviceView: (val: boolean) => void;
   eventModalOpen: boolean;
   setEventModalOpen: (val: boolean) => void;
-  // Financial computations
+  // Financial computations & predictive forecasting
   totalSpent: number;
   remainingBudget: number;
   spendingPercentage: number;
+  metrics: FinancialMetrics;
+  safeDailyAllowance: number;
+  projectedDay30Balance: number;
+  survivalHealthIndex: number;
+  // Audio & Accessibility & Shortcuts
+  isAudioMuted: boolean;
+  toggleAudioMute: () => void;
+  shortcutsModalOpen: boolean;
+  setShortcutsModalOpen: (val: boolean) => void;
+  announcement: string | null;
+  announce: (msg: string) => void;
   // Actions
   addToCart: (product: ShopProduct) => void;
   removeFromCart: (productId: string) => void;
@@ -171,19 +184,41 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [tasksByDay, setTasksByDay] = useState<Record<number, DayTask[]>>(INITIAL_TASKS);
   const [isPhoneDeviceView, setIsPhoneDeviceView] = useState<boolean>(false);
   const [eventModalOpen, setEventModalOpen] = useState<boolean>(false);
+  const [shortcutsModalOpen, setShortcutsModalOpen] = useState<boolean>(false);
+  const [isAudioMuted, setIsAudioMuted] = useState<boolean>(() => soundManager.getMuted());
+  const [announcement, setAnnouncement] = useState<string | null>(null);
 
-  // Load from LocalStorage
+  const announce = (msg: string) => {
+    setAnnouncement(msg);
+    setTimeout(() => {
+      setAnnouncement((curr) => (curr === msg ? null : curr));
+    }, 4000);
+  };
+
+  const toggleAudioMute = () => {
+    const nextMuted = soundManager.toggleMute();
+    setIsAudioMuted(nextMuted);
+    announce(nextMuted ? 'Sound effects muted' : 'Sound effects unmuted');
+  };
+
+  // Load from LocalStorage with integrity validation
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.currentDay) setCurrentDay(parsed.currentDay);
-        if (parsed.transactions) setTransactions(parsed.transactions);
-        if (parsed.tasksByDay) setTasksByDay(parsed.tasksByDay);
+        if (typeof parsed.currentDay === 'number' && parsed.currentDay >= 1 && parsed.currentDay <= 30) {
+          setCurrentDay(parsed.currentDay);
+        }
+        if (Array.isArray(parsed.transactions)) {
+          setTransactions(parsed.transactions);
+        }
+        if (parsed.tasksByDay && typeof parsed.tasksByDay === 'object') {
+          setTasksByDay(parsed.tasksByDay);
+        }
       }
     } catch {
-      // ignore
+      // Graceful fallback to default initial state
     }
   }, []);
 
@@ -199,14 +234,21 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         })
       );
     } catch {
-      // ignore
+      // LocalStorage error fallback
     }
   }, [currentDay, transactions, tasksByDay]);
 
-  // Derived financial statistics
-  const totalSpent = transactions.reduce((acc, tx) => acc + tx.amount, 0);
-  const remainingBudget = Math.max(0, initialBudget - totalSpent);
-  const spendingPercentage = Math.min(100, Math.round((totalSpent / initialBudget) * 100));
+  // Centralized, memoized financial computations & predictive metrics
+  const metrics = useMemo(
+    () => calculateFinancialMetrics(transactions, initialBudget, currentDay),
+    [transactions, initialBudget, currentDay]
+  );
+  const totalSpent = metrics.totalSpent;
+  const remainingBudget = metrics.remainingBudget;
+  const spendingPercentage = metrics.spendingPercentage;
+  const safeDailyAllowance = metrics.safeDailyAllowance;
+  const projectedDay30Balance = metrics.projectedDay30Balance;
+  const survivalHealthIndex = metrics.survivalHealthIndex;
 
   // Current day tasks
   const tasks = tasksByDay[currentDay] || [
@@ -215,9 +257,60 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     { id: `t-${currentDay}-3`, text: 'Cook dinner or budget meal', completed: false },
   ];
 
+  // Global Keyboard Navigation & Accessibility Shortcuts
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Do not trigger shortcuts when user is filling form fields
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (e.key === '?') {
+        e.preventDefault();
+        setShortcutsModalOpen((prev) => !prev);
+      } else if (e.key === 'm' || e.key === 'M') {
+        toggleAudioMute();
+      } else if (e.key === '1') {
+        setCurrentScreen('landing');
+      } else if (e.key === '2') {
+        setCurrentScreen('dashboard');
+      } else if (e.key === '3') {
+        setCurrentScreen('shop');
+      } else if (e.key === '4') {
+        triggerEventModal();
+      } else if (e.key === '5') {
+        setCurrentScreen('tracker');
+      } else if (e.key === '6') {
+        setCurrentScreen('insights');
+      } else if (e.key === '7') {
+        setCurrentScreen('moneyverse');
+      } else if (e.key === ' ') {
+        if (currentScreen === 'dashboard' || currentScreen === 'landing') {
+          e.preventDefault();
+          advanceDay();
+        }
+      } else if (e.key === 'Escape') {
+        setEventModalOpen(false);
+        setShortcutsModalOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [currentScreen, currentDay]);
+
   // Cart operations (Simulation only - does NOT affect balance until confirmed)
   const addToCart = (product: ShopProduct) => {
     setCart((prev) => [...prev, product]);
+    soundManager.playTap();
+    announce(`Added ${product.name} (₹${product.price}) to cart`);
   };
 
   const removeFromCart = (productId: string) => {
@@ -228,6 +321,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       copy.splice(idx, 1);
       return copy;
     });
+    soundManager.playTap();
   };
 
   const clearCart = () => {
@@ -237,6 +331,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Only confirming purchase changes balance
   const confirmPurchase = () => {
     if (cart.length === 0) return;
+    const totalCost = cart.reduce((sum, item) => sum + item.price, 0);
     const newTxs: Transaction[] = cart.map((item, i) => ({
       id: `tx-${Date.now()}-${i}`,
       name: item.name,
@@ -248,10 +343,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setTransactions((prev) => [...prev, ...newTxs]);
     setCart([]);
+    soundManager.playCoinSpend();
+    announce(`Purchased ${cart.length} item(s) for ₹${totalCost}. Remaining balance: ₹${remainingBudget - totalCost}`);
   };
 
   const cancelPurchase = () => {
-    // Zero financial effect!
     setCart([]);
   };
 
@@ -266,20 +362,29 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     category: ExpenseCategory;
     note?: string;
   }) => {
+    const validation = validateExpenseInput(name, amount, category);
+    if (!validation.valid) {
+      console.warn('Expense validation warning:', validation.error);
+      return;
+    }
+    const sanitizedAmount = Math.max(1, Math.round(Number(amount)));
     const newTx: Transaction = {
-      id: `tx-${Date.now()}`,
-      name,
+      id: `tx-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      name: name.trim(),
       category,
-      amount,
+      amount: sanitizedAmount,
       day: currentDay,
       timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16),
-      note,
+      note: note ? note.trim() : undefined,
     };
     setTransactions((prev) => [newTx, ...prev]);
+    soundManager.playCoinSpend();
+    announce(`Added expense "${name}" for ₹${sanitizedAmount}. New remaining: ₹${remainingBudget - sanitizedAmount}`);
   };
 
   const deleteExpense = (id: string) => {
     setTransactions((prev) => prev.filter((tx) => tx.id !== id));
+    soundManager.playTap();
   };
 
   const toggleTask = (taskId: string) => {
@@ -290,18 +395,24 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       );
       return { ...prev, [currentDay]: updated };
     });
+    soundManager.playTap();
   };
 
   const advanceDay = () => {
     if (currentDay >= 30) {
       setCurrentScreen('result');
+      soundManager.playVictory();
+      announce('30-Day challenge completed! Viewing final survival results.');
       return;
     }
     const nextDay = currentDay + 1;
     setCurrentDay(nextDay);
-    // Occasional trigger for unexpected events (like phone damage or surprise test)
+    soundManager.playDayAdvance();
+    announce(`Welcome to Day ${nextDay} of 30. Remaining balance: ₹${remainingBudget}. Safe daily allowance: ₹${safeDailyAllowance}.`);
+
     if (nextDay === 4 || nextDay === 15) {
       setEventModalOpen(true);
+      soundManager.playAlert();
     }
   };
 
@@ -310,7 +421,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentDay(day);
       if (day === 30) {
         setCurrentScreen('result');
+        soundManager.playVictory();
+      } else {
+        soundManager.playDayAdvance();
       }
+      announce(`Jumped to Day ${day}`);
     }
   };
 
@@ -324,10 +439,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
     }
     setEventModalOpen(false);
+    announce(`Resolved unexpected emergency with ${choice === 'pay' ? 'full payment' : 'budget alternative'}. Cost: ₹${cost}`);
   };
 
   const triggerEventModal = () => {
     setEventModalOpen(true);
+    soundManager.playAlert();
   };
 
   const resetGame = () => {
@@ -337,40 +454,74 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setTasksByDay(INITIAL_TASKS);
     setCurrentScreen('landing');
     localStorage.removeItem(STORAGE_KEY);
+    soundManager.playTap();
+    announce('Reset challenge back to Day 1 with initial ₹10,000 balance.');
   };
 
+  const contextValue = useMemo<GameContextType>(
+    () => ({
+      currentScreen,
+      setCurrentScreen,
+      currentDay,
+      initialBudget,
+      transactions,
+      cart,
+      tasks,
+      isPhoneDeviceView,
+      setIsPhoneDeviceView,
+      eventModalOpen,
+      setEventModalOpen,
+      shortcutsModalOpen,
+      setShortcutsModalOpen,
+      isAudioMuted,
+      toggleAudioMute,
+      announcement,
+      announce,
+      totalSpent,
+      remainingBudget,
+      spendingPercentage,
+      metrics,
+      safeDailyAllowance,
+      projectedDay30Balance,
+      survivalHealthIndex,
+      addToCart,
+      removeFromCart,
+      clearCart,
+      confirmPurchase,
+      cancelPurchase,
+      addExpense,
+      deleteExpense,
+      toggleTask,
+      advanceDay,
+      jumpToDay,
+      resolveUnexpectedExpense,
+      resetGame,
+      triggerEventModal,
+    }),
+    [
+      currentScreen,
+      currentDay,
+      initialBudget,
+      transactions,
+      cart,
+      tasks,
+      isPhoneDeviceView,
+      eventModalOpen,
+      shortcutsModalOpen,
+      isAudioMuted,
+      announcement,
+      totalSpent,
+      remainingBudget,
+      spendingPercentage,
+      metrics,
+      safeDailyAllowance,
+      projectedDay30Balance,
+      survivalHealthIndex,
+    ]
+  );
+
   return (
-    <GameContext.Provider
-      value={{
-        currentScreen,
-        setCurrentScreen,
-        currentDay,
-        initialBudget,
-        transactions,
-        cart,
-        tasks,
-        isPhoneDeviceView,
-        setIsPhoneDeviceView,
-        eventModalOpen,
-        setEventModalOpen,
-        totalSpent,
-        remainingBudget,
-        spendingPercentage,
-        addToCart,
-        removeFromCart,
-        clearCart,
-        confirmPurchase,
-        cancelPurchase,
-        addExpense,
-        deleteExpense,
-        toggleTask,
-        advanceDay,
-        jumpToDay,
-        resolveUnexpectedExpense,
-        resetGame,
-        triggerEventModal,
-      }}
-    >
+    <GameContext.Provider value={contextValue}>
       {children}
     </GameContext.Provider>
   );

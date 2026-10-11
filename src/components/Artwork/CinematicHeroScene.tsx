@@ -1,11 +1,20 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 interface Props {
   blendWith3D?: boolean;
 }
 
 export const CinematicHeroScene: React.FC<Props> = ({ blendWith3D = true }) => {
-  const [mouseOffset, setMouseOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const cloudsDeepRef = useRef<SVGGElement>(null);
+  const cloudsForeRef = useRef<SVGGElement>(null);
+  const island1Ref = useRef<SVGGElement>(null);
+  const island2Ref = useRef<SVGGElement>(null);
+  const crystal1Ref = useRef<SVGGElement>(null);
+  const crystal2Ref = useRef<SVGGElement>(null);
+  const crystal3Ref = useRef<SVGGElement>(null);
+  const metropolisRef = useRef<SVGGElement>(null);
+  const cliffRef = useRef<SVGGElement>(null);
+  const avatarRef = useRef<SVGGElement>(null);
 
   useEffect(() => {
     // Only enable pointer parallax on fine pointer devices (desktop/mouse)
@@ -16,45 +25,64 @@ export const CinematicHeroScene: React.FC<Props> = ({ blendWith3D = true }) => {
     let targetY = 0;
     let currentX = 0;
     let currentY = 0;
-    let rafId: number;
+    let rafId: number | null = null;
+    let isAnimating = false;
 
-    const handleMouseMove = (e: MouseEvent) => {
-      // Normalize to [-1, 1]
-      const nx = (e.clientX / window.innerWidth) * 2 - 1;
-      const ny = (e.clientY / window.innerHeight) * 2 - 1;
-      targetX = nx;
-      targetY = ny;
+    const updateTransforms = (x: number, y: number) => {
+      if (cloudsDeepRef.current) cloudsDeepRef.current.setAttribute('transform', `translate(${x * -0.4}, ${y * -0.3})`);
+      if (cloudsForeRef.current) cloudsForeRef.current.setAttribute('transform', `translate(${x * 0.7}, ${y * 0.5})`);
+      if (island1Ref.current) island1Ref.current.setAttribute('transform', `translate(${380 + x * 0.6}, ${340 + y * 0.4}) scale(0.65)`);
+      if (island2Ref.current) island2Ref.current.setAttribute('transform', `translate(${740 + x * 0.8}, ${250 + y * 0.6}) scale(0.75)`);
+      if (crystal1Ref.current) crystal1Ref.current.setAttribute('transform', `translate(${890 + x * 0.9}, ${460 + y * 0.7})`);
+      if (crystal2Ref.current) crystal2Ref.current.setAttribute('transform', `translate(${1440 + x * 0.7}, ${390 + y * 0.5})`);
+      if (crystal3Ref.current) crystal3Ref.current.setAttribute('transform', `translate(${220 + x * 0.6}, ${370 + y * 0.4})`);
+      if (metropolisRef.current) metropolisRef.current.setAttribute('transform', `translate(${1020 + x * 1.1}, ${240 + y * 0.9})`);
+      if (cliffRef.current) cliffRef.current.setAttribute('transform', `translate(${680 + x * -0.5}, ${580 + y * -0.3})`);
+      if (avatarRef.current) avatarRef.current.setAttribute('transform', `translate(${860 + x * -0.5}, ${460 + y * -0.3})`);
     };
 
     const animate = () => {
-      // Damped spring interpolation for butter-smooth parallax
+      // Damped spring interpolation for smooth parallax
       currentX += (targetX - currentX) * 0.05;
       currentY += (targetY - currentY) * 0.05;
 
-      // Restrained movement: max 6px horizontally, 4px vertically
-      setMouseOffset({
-        x: Math.round(currentX * 6 * 100) / 100,
-        y: Math.round(currentY * 4 * 100) / 100,
-      });
+      const x = Math.round(currentX * 6 * 100) / 100;
+      const y = Math.round(currentY * 4 * 100) / 100;
+      updateTransforms(x, y);
 
-      rafId = requestAnimationFrame(animate);
+      // Stop RAF when motion settles to save 100% of CPU cycles
+      if (Math.abs(targetX - currentX) < 0.002 && Math.abs(targetY - currentY) < 0.002) {
+        isAnimating = false;
+        rafId = null;
+      } else {
+        rafId = requestAnimationFrame(animate);
+      }
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      targetX = (e.clientX / window.innerWidth) * 2 - 1;
+      targetY = (e.clientY / window.innerHeight) * 2 - 1;
+      if (!isAnimating) {
+        isAnimating = true;
+        rafId = requestAnimationFrame(animate);
+      }
     };
 
     window.addEventListener('mousemove', handleMouseMove, { passive: true });
-    rafId = requestAnimationFrame(animate);
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
-      cancelAnimationFrame(rafId);
+      if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, []);
 
   return (
-    <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none select-none">
+    <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none select-none" aria-hidden="true">
       <svg
         viewBox="0 0 1600 1000"
         className="w-full h-full object-cover transition-opacity duration-700"
         preserveAspectRatio="xMidYMid slice"
+        aria-hidden="true"
       >
         <defs>
           {/* Rich 7-Stop Sunset Sky Gradient */}
@@ -171,7 +199,8 @@ export const CinematicHeroScene: React.FC<Props> = ({ blendWith3D = true }) => {
 
         {/* 4. Deep Background Clouds with Slow Parallax Layer (moves ~0.35x) */}
         <g
-          transform={`translate(${mouseOffset.x * -0.4}, ${mouseOffset.y * -0.3})`}
+          ref={cloudsDeepRef}
+          transform="translate(0, 0)"
           className="transition-transform duration-75 ease-out"
           opacity="0.82"
         >
@@ -193,7 +222,8 @@ export const CinematicHeroScene: React.FC<Props> = ({ blendWith3D = true }) => {
 
         {/* 5. Forefront Clouds with Medium Parallax Layer (moves ~0.7x) */}
         <g
-          transform={`translate(${mouseOffset.x * 0.7}, ${mouseOffset.y * 0.5})`}
+          ref={cloudsForeRef}
+          transform="translate(0, 0)"
           className="transition-transform duration-75 ease-out"
           opacity="0.75"
         >
@@ -206,7 +236,8 @@ export const CinematicHeroScene: React.FC<Props> = ({ blendWith3D = true }) => {
 
         {/* 6. Distant Silhouette Floating Island 1 (Left background) */}
         <g
-          transform={`translate(${380 + mouseOffset.x * 0.6}, ${340 + mouseOffset.y * 0.4}) scale(0.65)`}
+          ref={island1Ref}
+          transform="translate(380, 340) scale(0.65)"
           className="transition-transform duration-75 ease-out"
           opacity="0.7"
         >
@@ -220,7 +251,8 @@ export const CinematicHeroScene: React.FC<Props> = ({ blendWith3D = true }) => {
 
         {/* 7. Distant Silhouette Midground Island 2 (Center-upper horizon) */}
         <g
-          transform={`translate(${740 + mouseOffset.x * 0.8}, ${250 + mouseOffset.y * 0.6}) scale(0.75)`}
+          ref={island2Ref}
+          transform="translate(740, 250) scale(0.75)"
           className="transition-transform duration-75 ease-out"
           opacity="0.8"
         >
@@ -243,14 +275,14 @@ export const CinematicHeroScene: React.FC<Props> = ({ blendWith3D = true }) => {
         </g>
 
         {/* 8. Hovering Sunset Crystals with Soft Magical Glow */}
-        <g transform={`translate(${890 + mouseOffset.x * 0.9}, ${460 + mouseOffset.y * 0.7})`} filter="url(#softGlow10)">
+        <g ref={crystal1Ref} transform="translate(890, 460)" filter="url(#softGlow10)">
           <polygon points="15,0 30,20 20,40 5,30 0,15" fill="#f43f5e" />
           <polygon points="15,0 20,40 5,30" fill="#ec4899" />
         </g>
-        <g transform={`translate(${1440 + mouseOffset.x * 0.7}, ${390 + mouseOffset.y * 0.5})`} filter="url(#softGlow10)">
+        <g ref={crystal2Ref} transform="translate(1440, 390)" filter="url(#softGlow10)">
           <polygon points="20,0 40,25 25,50 10,35 0,20" fill="#38bdf8" />
         </g>
-        <g transform={`translate(${220 + mouseOffset.x * 0.6}, ${370 + mouseOffset.y * 0.4})`} filter="url(#softGlow10)">
+        <g ref={crystal3Ref} transform="translate(220, 370)" filter="url(#softGlow10)">
           <polygon points="12,0 24,16 16,32 4,24 0,12" fill="#fb923c" />
         </g>
 
@@ -283,7 +315,8 @@ export const CinematicHeroScene: React.FC<Props> = ({ blendWith3D = true }) => {
           <>
             {/* Main Floating Metropolis */}
             <g
-              transform={`translate(${1020 + mouseOffset.x * 1.1}, ${240 + mouseOffset.y * 0.9})`}
+              ref={metropolisRef}
+              transform="translate(1020, 240)"
               className="transition-transform duration-75 ease-out"
             >
               <polygon
@@ -367,7 +400,8 @@ export const CinematicHeroScene: React.FC<Props> = ({ blendWith3D = true }) => {
 
             {/* Foreground Cliff Terrace */}
             <g
-              transform={`translate(${680 + mouseOffset.x * -0.5}, ${580 + mouseOffset.y * -0.3})`}
+              ref={cliffRef}
+              transform="translate(680, 580)"
               className="transition-transform duration-75 ease-out"
             >
               <path d="M 0,260 L 260,180 L 520,240 L 580,420 L 0,420 Z" fill="#120e2e" />
@@ -378,7 +412,8 @@ export const CinematicHeroScene: React.FC<Props> = ({ blendWith3D = true }) => {
 
             {/* Protagonist Avatar */}
             <g
-              transform={`translate(${860 + mouseOffset.x * -0.5}, ${460 + mouseOffset.y * -0.3})`}
+              ref={avatarRef}
+              transform="translate(860, 460)"
               className="transition-transform duration-75 ease-out"
             >
               <circle cx="95" cy="160" r="130" fill="#f43f5e" opacity="0.25" filter="url(#bloomFilter)" />

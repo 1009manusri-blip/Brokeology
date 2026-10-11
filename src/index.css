@@ -107,12 +107,19 @@
   text-shadow: 0 0 20px rgba(244, 63, 94, 0.4), 0 0 40px rgba(244, 63, 94, 0.15);
 }
 
-/* Reduced Motion Support */
+/* Accessible High-Contrast Keyboard Focus Visible Ring */
+:focus-visible {
+  outline: 2px solid #f43f5e;
+  outline-offset: 2px;
+}
+
+/* Reduced Motion Support (WCAG 2.1 AA) */
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

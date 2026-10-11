@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { IsometricWorldIllustration } from './Artwork/IsometricWorldIllustration';
 
 interface Props {
   onSelectLocation?: (locationName: 'College' | 'Home' | 'Market' | 'Cafe' | 'Bank') => void;
@@ -73,7 +74,7 @@ export const ThreeMoneyverse: React.FC<Props> = ({
     // 2. Renderer Setup
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
     renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.setClearColor(0x000000, 0);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.15;
@@ -91,8 +92,8 @@ export const ThreeMoneyverse: React.FC<Props> = ({
     const sunLight = new THREE.DirectionalLight(0xfbbf24, 2.3);
     sunLight.position.set(22, 28, 15);
     sunLight.castShadow = true;
-    sunLight.shadow.mapSize.width = 1024;
-    sunLight.shadow.mapSize.height = 1024;
+    sunLight.shadow.mapSize.width = 512;
+    sunLight.shadow.mapSize.height = 512;
     sunLight.shadow.camera.near = 0.5;
     sunLight.shadow.camera.far = 80;
     sunLight.shadow.camera.left = -20;
@@ -491,6 +492,7 @@ export const ThreeMoneyverse: React.FC<Props> = ({
     // 10. Raycasting for Building Hover & Click Interaction
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2(-999, -999);
+    let mouseMoved = false;
 
     let mouseTargetX = 0;
     let mouseTargetY = 0;
@@ -505,6 +507,15 @@ export const ThreeMoneyverse: React.FC<Props> = ({
       // Parallax target
       mouseTargetX = (e.clientX / window.innerWidth) * 2 - 1;
       mouseTargetY = (e.clientY / window.innerHeight) * 2 - 1;
+      mouseMoved = true;
+    };
+
+    const onPointerLeave = () => {
+      mouse.x = -999;
+      mouse.y = -999;
+      mouseTargetX = 0;
+      mouseTargetY = 0;
+      mouseMoved = true;
     };
 
     const onClick = () => {
@@ -527,25 +538,36 @@ export const ThreeMoneyverse: React.FC<Props> = ({
 
     const domElement = renderer.domElement;
     domElement.addEventListener('mousemove', onPointerMove, { passive: true });
+    domElement.addEventListener('mouseleave', onPointerLeave, { passive: true });
     domElement.addEventListener('click', onClick);
 
-    // Resize Handler
+    // Resize Handler with debounced layout guard
+    let resizeTimer: number;
     const onResize = () => {
-      if (!container) return;
-      const w = container.clientWidth || 800;
-      const h = container.clientHeight || 500;
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
+      clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(() => {
+        if (!container) return;
+        const w = container.clientWidth || 800;
+        const h = container.clientHeight || 500;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+      }, 80);
     };
     window.addEventListener('resize', onResize);
 
-    // 11. Animation Loop with Dynamic Camera Framing
-    let animId: number;
-    let clock = new THREE.Clock();
+    // 11. Animation Loop with Dynamic Camera Framing & Visibility Throttling
+    let animId: number | null = null;
+    let isVisible = true;
+    const clock = new THREE.Clock();
+    let currentHovered: string | null = null;
 
     const animate = () => {
       animId = requestAnimationFrame(animate);
+
+      // Skip GPU render passes when element is offscreen or tab is backgrounded
+      if (!isVisible) return;
+
       const delta = clock.getDelta();
       const time = clock.getElapsedTime();
 
@@ -589,28 +611,35 @@ export const ThreeMoneyverse: React.FC<Props> = ({
       }
       particleGeo.attributes.position.needsUpdate = true;
 
-      // Raycast hover detection
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(worldGroup.children, true);
-      let foundHover: string | null = null;
-
-      if (intersects.length > 0) {
-        let obj: THREE.Object3D | null = intersects[0].object;
-        while (obj && obj !== worldGroup) {
-          if (obj.userData?.locationName) {
-            foundHover = obj.userData.locationName;
-            break;
+      // Only perform raycasting if pointer has moved across the canvas
+      if (mouseMoved) {
+        mouseMoved = false;
+        let foundHover: string | null = null;
+        if (mouse.x > -1.5 && mouse.x < 1.5 && mouse.y > -1.5 && mouse.y < 1.5) {
+          raycaster.setFromCamera(mouse, camera);
+          const intersects = raycaster.intersectObjects(worldGroup.children, true);
+          if (intersects.length > 0) {
+            let obj: THREE.Object3D | null = intersects[0].object;
+            while (obj && obj !== worldGroup) {
+              if (obj.userData?.locationName) {
+                foundHover = obj.userData.locationName;
+                break;
+              }
+              obj = obj.parent;
+            }
           }
-          obj = obj.parent;
+        }
+
+        if (currentHovered !== foundHover) {
+          currentHovered = foundHover;
+          setHoveredBuilding(foundHover);
+          domElement.style.cursor = foundHover ? 'pointer' : 'default';
         }
       }
 
-      setHoveredBuilding(foundHover);
-      domElement.style.cursor = foundHover ? 'pointer' : 'default';
-
       // Smooth elevation and emissive highlight for hovered/selected building
       interactiveBuildings.forEach((b) => {
-        const isHovered = b.name === foundHover;
+        const isHovered = b.name === currentHovered;
         const isSelected = b.name === activeLoc;
         const targetElev = isHovered || isSelected ? b.baseY + 0.65 : b.baseY;
 
@@ -632,15 +661,64 @@ export const ThreeMoneyverse: React.FC<Props> = ({
       renderer.render(scene, camera);
     };
 
-    animate();
+    // Viewport Intersection & Tab Visibility Guard (High Performance Optimization)
+    const observer = new IntersectionObserver(([entry]) => {
+      const wasVisible = isVisible;
+      isVisible = entry.isIntersecting && !document.hidden;
+      if (isVisible && !wasVisible && animId === null) {
+        animId = requestAnimationFrame(animate);
+      } else if (!isVisible && animId !== null) {
+        cancelAnimationFrame(animId);
+        animId = null;
+      }
+    }, { threshold: 0.05 });
+    observer.observe(container);
+
+    const onVisibilityChange = () => {
+      const wasVisible = isVisible;
+      isVisible = !document.hidden;
+      if (isVisible && !wasVisible && animId === null) {
+        animId = requestAnimationFrame(animate);
+      } else if (!isVisible && animId !== null) {
+        cancelAnimationFrame(animId);
+        animId = null;
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    // Initial loop start
+    animId = requestAnimationFrame(animate);
 
     return () => {
-      cancelAnimationFrame(animId);
+      if (animId !== null) {
+        cancelAnimationFrame(animId);
+        animId = null;
+      }
+      clearTimeout(resizeTimer);
       window.removeEventListener('resize', onResize);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      observer.disconnect();
       domElement.removeEventListener('mousemove', onPointerMove);
+      domElement.removeEventListener('mouseleave', onPointerLeave);
       domElement.removeEventListener('click', onClick);
 
-      // Clean up Three.js resources
+      // Thoroughly dispose of all geometries, materials, and WebGL resources to avoid memory leaks
+      scene.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          obj.geometry?.dispose();
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach((m) => m.dispose());
+          } else if (obj.material) {
+            obj.material.dispose();
+          }
+        } else if (obj instanceof THREE.Points) {
+          obj.geometry?.dispose();
+          if (obj.material instanceof THREE.Material) {
+            obj.material.dispose();
+          }
+        }
+      });
+
       renderer.dispose();
       if (domElement.parentElement) {
         domElement.parentElement.removeChild(domElement);
@@ -648,9 +726,30 @@ export const ThreeMoneyverse: React.FC<Props> = ({
     };
   }, [interactive, onSelectLocation]);
 
+  if (!webglSupported) {
+    return (
+      <div
+        role="region"
+        aria-label="Interactive Moneyverse Island illustration fallback"
+        className={`relative ${className} select-none overflow-hidden rounded-3xl group`}
+      >
+        <IsometricWorldIllustration
+          interactive={interactive}
+          onSelectLocation={onSelectLocation}
+          selectedLocation={selectedLocation}
+          showSpeechBubble={showSpeechBubble}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className={`relative ${className} select-none overflow-hidden rounded-3xl group`}>
-      <div ref={mountRef} className="w-full h-full" />
+    <div
+      role="region"
+      aria-label="Interactive 3D Moneyverse Island diorama"
+      className={`relative ${className} select-none overflow-hidden rounded-3xl group`}
+    >
+      <div ref={mountRef} className="w-full h-full" style={{ touchAction: 'pan-y' }} />
 
       {/* Speech Bubble Overlay Matching Screen 2 */}
       {showSpeechBubble && (
@@ -665,14 +764,20 @@ export const ThreeMoneyverse: React.FC<Props> = ({
 
       {/* Floating Interactive Badge Overlays */}
       {interactive && (
-        <div className="absolute bottom-4 left-4 right-4 flex items-center justify-center gap-1.5 sm:gap-2 pointer-events-none flex-wrap">
+        <div
+          role="toolbar"
+          aria-label="Location focus navigation"
+          className="absolute bottom-4 left-4 right-4 flex items-center justify-center gap-1.5 sm:gap-2 pointer-events-none flex-wrap"
+        >
           {(['College', 'Home', 'Market', 'Cafe', 'Bank'] as const).map((loc) => {
             const isActive = selectedLocation === loc || hoveredBuilding === loc;
             return (
               <button
                 key={loc}
                 onClick={() => onSelectLocation && onSelectLocation(loc)}
-                className={`pointer-events-auto px-3 sm:px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-200 cursor-pointer ${
+                aria-label={`Inspect ${loc} landmark`}
+                aria-pressed={isActive}
+                className={`pointer-events-auto px-3 sm:px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-pink-400 focus-visible:outline-offset-2 ${
                   isActive
                     ? 'btn-glow-pink text-white shadow-lg scale-105'
                     : 'glass-pill text-slate-300 hover:text-white hover:border-pink-400/40'

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
 import { CrownSunsetIllustration } from './Artwork/CrownSunsetIllustration';
 import { AnimatedRupee } from './AnimatedRupee';
@@ -25,6 +25,16 @@ export const FinalResult: React.FC = () => {
 
   const [showReportModal, setShowReportModal] = useState<boolean>(false);
   const [copiedShare, setCopiedShare] = useState<boolean>(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showReportModal) {
+        setShowReportModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showReportModal]);
 
   const savingsRate = Math.round((remainingBudget / initialBudget) * 100);
 
@@ -135,6 +145,9 @@ export const FinalResult: React.FC = () => {
             />
 
             <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="report-modal-title"
               initial={{ opacity: 0, scale: 0.94, y: 14 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 8 }}
@@ -143,20 +156,21 @@ export const FinalResult: React.FC = () => {
             >
               <button
                 onClick={() => setShowReportModal(false)}
-                className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-lg transition-colors duration-150 cursor-pointer"
+                aria-label="Close report dialog"
+                className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-lg transition-colors duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-pink-400"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5" aria-hidden="true" />
               </button>
 
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center" aria-hidden="true">
                   <Trophy className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-display font-bold text-xl text-white">
+                  <h3 id="report-modal-title" className="font-display font-bold text-xl text-white">
                     30-Day Financial Graduation Report
                   </h3>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-300">
                     Performance assessment & unlocked financial badges.
                   </p>
                 </div>
